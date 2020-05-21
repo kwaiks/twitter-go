@@ -35,5 +35,5 @@ func (app *App) setRouters(){
 	app.post("/login", app.requestHandler(handler.LoginHandler))
 	app.post("/register", app.requestHandler(handler.RegisterHandler))
 	app.post("/forgetPass", app.requestHandler(handler.ForgetPasswordHandler))
-	app.put("/resetPass/{key}", app.requestHandler(handler.ResetPasswordHandler))
+	app.post("/resetPass", app.requestHandler(handler.ResetPasswordHandler))
 }

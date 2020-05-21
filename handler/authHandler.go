@@ -2,7 +2,6 @@ package handler
 
 import (
 	_"github.com/dgrijalva/jwt-go"
-	"github.com/gorilla/mux"
 	"context"
 	"crypto/rand"
 	"golang.org/x/crypto/bcrypt"
@@ -16,22 +15,27 @@ import (
 )
 
 func LoginHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
-	user := decodeUser(w, r.Body)
+	res := decodeRequest(w, r.Body)
+	user := decodeUserFromMap(res)
+
 	if user.Username == "" || user.Password == "" {
-		http.Error(w, "Found empty field", http.StatusBadRequest)
+		sendResponse(w, 400, "Found empty field", nil)
+		return
 	}
 
 	var err error 
 
-	getUserQuery := "SELECT id,username,email,photo,password FROM users WHERE username = $1"
+	getUserQuery := "SELECT password,id,username,email,photo FROM users WHERE username = $1"
 	var password string
 	var userRes models.User
 	
-	err = db.QueryRow(getUserQuery, user.Username).Scan(&userRes.ID, &userRes.Username, &userRes.Email, &userRes.Photo, &password)
+	err = db.QueryRow(getUserQuery, user.Username).Scan(&password,&userRes.ID, &userRes.Username, &userRes.Email, &userRes.Photo)
 	if err == sql.ErrNoRows {
 		sendResponse(w, 404, "User not found",nil)
 		return
 	}
+
+	fmt.Println(password)
 
 	err = bcrypt.CompareHashAndPassword([]byte(password),[]byte(user.Password))
 	if err != nil {
@@ -43,15 +47,17 @@ func LoginHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
 }
 
 func RegisterHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
-	user := decodeUser(w, r.Body)
+	res := decodeRequest(w, r.Body)
+	user := decodeUserFromMap(res)
 
-	checkUserNameQuery := "SELECT username from users WHERE username=$1"
+	checkUserNameQuery := "SELECT username, email from users WHERE username=$1 OR email=$2"
 
 	// check if username already registered
 	var username string
-	errDb := db.QueryRow(checkUserNameQuery,user.Username).Scan(&username)
+	var email string
+	errDb := db.QueryRow(checkUserNameQuery,user.Username,user.Email).Scan(&username,&email)
 	if errDb == nil { 
-		sendResponse(w, 202, "Username has been used",nil)
+		sendResponse(w, 202, "Username or Email has been used",nil)
 		return
 	}
 
@@ -69,7 +75,8 @@ func RegisterHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
 }
 
 func ForgetPasswordHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
-	user := decodeUser(w, r.Body)
+	res := decodeRequest(w, r.Body)
+	user := decodeUserFromMap(res)
 
 	var err error
 
@@ -111,9 +118,9 @@ func ForgetPasswordHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
 }
 
 func ResetPasswordHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
-	vars := mux.Vars(r)
-	key := vars["key"]
-	user := decodeUser(w, r.Body)
+	res := decodeRequest(w, r.Body)
+	key := res["key"]
+	user := decodeUserFromMap(res)
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(user.Password),10)
 
 	_, err := db.Exec("UPDATE users SET password=$1, reset_password=0 FROM reset_pass_keys WHERE users.id = reset_pass_keys.userid AND reset_pass_keys.key = $2 AND users.reset_password = 1",hashedPassword,key)

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/rs/cors"
 	"net/http"
 	"fmt"
 
@@ -43,6 +44,6 @@ func (app *App) setDBConnection(config *config.DBConfig) *sql.DB{
 }
 
 func (app *App) Run(port string){
-	err := http.ListenAndServe(port, app.Router)
+	err := http.ListenAndServe(port, cors.Default().Handler(app.Router))
 	Fatal(err)
 }
