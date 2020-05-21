@@ -44,6 +44,6 @@ func (app *App) setDBConnection(config *config.DBConfig) *sql.DB{
 }
 
 func (app *App) Run(port string){
-	err := http.ListenAndServe(port, cors.Default().Handler(app.Router))
+	err := http.ListenAndServe(port, cors.Default().Handler(app.Router)) //Added CORS to integrate with React
 	Fatal(err)
 }
