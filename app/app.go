@@ -7,7 +7,6 @@ import (
 	"fmt"
 
 	"github.com/gorilla/mux"
-	_ "github.com/lib/pq"
 	"database/sql"
 	
 
@@ -15,20 +14,21 @@ import (
 )
 
 type App struct {
-	Router		*mux.Router
-	DB			*sql.DB
-	BasePath	string
+	Router			*mux.Router
+	PrivateRoute	*mux.Router
+	DB				*sql.DB
 }
 
 func (app *App) Initialize(){
 	err := godotenv.Load() //load .env file
 	Fatal(err)
 
+	
 	dbConfig := config.GetDBConfig() //Retrieve DB Config
-	app.BasePath = config.GetAPIPath()
-	fmt.Println(app.BasePath)
 	app.DB = app.setDBConnection(dbConfig) // Set the connection
-	app.Router = mux.NewRouter()
+	app.Router = mux.NewRouter().PathPrefix("/api").Subrouter()
+	app.PrivateRoute = app.Router.PathPrefix("/service").Subrouter()
+	app.PrivateRoute.Use(authMiddleware)
 	app.setRouters()
 }
 
@@ -49,6 +49,11 @@ func (app *App) setDBConnection(config *config.DBConfig) *sql.DB{
 }
 
 func (app *App) Run(port string){
-	err := http.ListenAndServe(port, cors.Default().Handler(app.Router)) //Added CORS to integrate with React
+	c := cors.New(cors.Options{
+		AllowedOrigins:[]string{"http://localhost:3000","localhost"},
+		Debug:true,
+		AllowedHeaders: []string{"Content-Type","Bearer","Bearer ","content-type","Origin","Accept","Authorization","Refresh-Token"},
+	})
+	err := http.ListenAndServe(port, c.Handler(app.Router)) //Added CORS to integrate with React
 	Fatal(err)
 }

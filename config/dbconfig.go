@@ -31,7 +31,3 @@ func GetDBConfig() *DBConfig{
 		},
 	}
 }
-
-func GetAPIPath() string{
-	return os.Getenv("api_path")
-}

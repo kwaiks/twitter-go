@@ -11,7 +11,7 @@ type Tweet struct {
 	Retweet int32 `json:"retweets"`
 	Comments int32 `json:"comments"`
 	Type string `json:"type"`
-	CreatedBy int64 `json:"createdby"`
+	Username string `json:"username"`
 	CreatedOn *time.Time `json:"createdon"`
 }
 

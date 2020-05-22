@@ -10,40 +10,50 @@ import (
 	"database/sql"
 	"log"
 	"fmt"
-
+	gCon "github.com/gorilla/context"
 	"../models"
+	myJwt "../jwt"
+	"time"
 )
 
 func LoginHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
 	res := decodeRequest(w, r.Body)
 	user := decodeUserFromMap(res)
+	tes := gCon.Get(r,"username")
+
+	fmt.Println(tes)
+
 
 	if user.Username == "" || user.Password == "" {
-		sendResponse(w, 400, "Found empty field", nil)
+		sendResponseNoPayload(w, 400, "Found empty field")
 		return
 	}
 
 	var err error 
 
-	getUserQuery := "SELECT password,id,username,email,photo FROM users WHERE username = $1"
+	getUserQuery := "SELECT password,username FROM users WHERE username = $1"
 	var password string
 	var userRes models.User
 	
-	err = db.QueryRow(getUserQuery, user.Username).Scan(&password,&userRes.ID, &userRes.Username, &userRes.Email, &userRes.Photo)
+	err = db.QueryRow(getUserQuery, user.Username).Scan(&password,&userRes.Username)
 	if err == sql.ErrNoRows {
-		sendResponse(w, 404, "User not found",nil)
+		sendResponseNoPayload(w, 404, "User not found")
 		return
 	}
-
-	fmt.Println(password)
 
 	err = bcrypt.CompareHashAndPassword([]byte(password),[]byte(user.Password))
 	if err != nil {
-		sendResponse(w, 401, "Password doesn't match", nil)
+		sendResponseNoPayload(w, 401, "Password doesn't match")
 		return
 	}
 	//jwt := jwt.New()
-	sendResponse(w, 200, "Succesfully logged in", nil)
+	token := myJwt.GenerateJWT(userRes.Username)
+	refToken := myJwt.GenerateRefreshToken()
+	refCookie := http.Cookie{Name:"rtk",Value:refToken,Expires:time.Now().AddDate(1,0,0)}
+	tknCookie := http.Cookie{Name:"qtk",Value:token}
+	http.SetCookie(w, &tknCookie)
+	http.SetCookie(w, &refCookie)
+	sendResponse(w, 200, nil, token, refToken)
 }
 
 func RegisterHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
@@ -57,12 +67,12 @@ func RegisterHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
 	var email string
 	errDb := db.QueryRow(checkUserNameQuery,user.Username,user.Email).Scan(&username,&email)
 	if errDb == nil { 
-		sendResponse(w, 202, "Username or Email has been used",nil)
+		sendResponseNoPayload(w, 202, "Username or Email has been used")
 		return
 	}
 
 	if user.Password == "" {
-		sendResponse(w, 200, "Username and email could be used",nil)
+		sendResponseNoPayload(w, 200, "Username and email could be used")
 		return
 	}
 
@@ -76,7 +86,7 @@ func RegisterHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
 		return
 	}
 
-	sendResponse(w, 201, "Successfully registered", nil)
+	sendResponseNoPayload(w, 201, "Successfully registered")
 }
 
 func ForgetPasswordHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
@@ -89,7 +99,7 @@ func ForgetPasswordHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
 	var userMdl models.User
 	err = db.QueryRow(queryString, user.Username, user.Email).Scan(&userMdl.Username,&userMdl.ID)
 	if err == sql.ErrNoRows {
-		sendResponse(w, 404, "User not found", nil)
+		sendResponseNoPayload(w, 404, "User not found")
 		return
 	}
 
@@ -119,7 +129,7 @@ func ForgetPasswordHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
 		http.Error(w, commitErr.Error(), http.StatusInternalServerError)
 		return
 	}
-	sendResponse(w, http.StatusOK, "key has been sent", generatedKey)
+	sendResponse(w, http.StatusOK, generatedKey, "", "")
 }
 
 func ResetPasswordHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
@@ -133,7 +143,7 @@ func ResetPasswordHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	sendResponse(w, http.StatusOK, "Password has been reseted", nil)
+	sendResponseNoPayload(w, http.StatusOK, "Password has been reseted")
 }
 
 func randString(n int) string {

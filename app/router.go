@@ -3,8 +3,12 @@ package app
 import (
 	"database/sql"
 	"net/http"
-	"fmt"
 	"../handler"
+)
+
+const (
+	post="POST"
+	get="GET"
 )
 
 type ReqHandlerFunction func(db *sql.DB, w http.ResponseWriter, r *http.Request)
@@ -16,24 +20,20 @@ func (app *App) requestHandler(handler ReqHandlerFunction) http.HandlerFunc {
 }
 
 // transform get Method
-func (app *App) get(path string, f func(w http.ResponseWriter, r *http.Request)){
-	endPoint := fmt.Sprintf("%s%s",app.BasePath,path)
-	app.Router.HandleFunc(endPoint, f).Methods("GET")
+func (app *App) privateRoute(path string, method string, f func(w http.ResponseWriter, r *http.Request)){
+	app.PrivateRoute.HandleFunc(path, f).Methods(method)
 }
 
-func (app *App) post(path string, f func(w http.ResponseWriter, r *http.Request)){
-	endPoint := fmt.Sprintf("%s%s",app.BasePath,path)
-	app.Router.HandleFunc(endPoint, f).Methods("POST")
-}
-
-func (app *App) put(path string, f func(w http.ResponseWriter, r *http.Request)){
-	endPoint := fmt.Sprintf("%s%s",app.BasePath,path)
-	app.Router.HandleFunc(endPoint, f).Methods("PUT")
+func (app *App) publicRoute(path string, method string, f func(w http.ResponseWriter, r *http.Request)){
+	app.Router.HandleFunc(path, f).Methods("POST")
 }
 
 func (app *App) setRouters(){
-	app.post("/login", app.requestHandler(handler.LoginHandler))
-	app.post("/register", app.requestHandler(handler.RegisterHandler))
-	app.post("/forgetPass", app.requestHandler(handler.ForgetPasswordHandler))
-	app.post("/resetPass", app.requestHandler(handler.ResetPasswordHandler))
+	app.publicRoute("/login", post, app.requestHandler(handler.LoginHandler))
+	app.publicRoute("/register", post, app.requestHandler(handler.RegisterHandler))
+	app.publicRoute("/forgetPass", post, app.requestHandler(handler.ForgetPasswordHandler))
+	app.publicRoute("/resetPass", post, app.requestHandler(handler.ResetPasswordHandler))
+
+	app.privateRoute("/getProfile", get, app.requestHandler(handler.GetOwnProfile))
+	app.privateRoute("/getUserProfile/{user}", get, app.requestHandler(handler.GetUserProfile))
 }
