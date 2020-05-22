@@ -61,6 +61,11 @@ func RegisterHandler(db *sql.DB, w http.ResponseWriter, r *http.Request){
 		return
 	}
 
+	if user.Password == "" {
+		sendResponse(w, 200, "Username and email could be used",nil)
+		return
+	}
+
 	// register user
 	hashedPassword, _ := bcrypt.GenerateFromPassword([]byte(user.Password),10) //default cost
 	queryString := "INSERT INTO users (username,password,email,name) VALUES ($1,$2,$3,$4)"

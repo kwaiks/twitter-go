@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/joho/godotenv"
 	"github.com/rs/cors"
 	"net/http"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	_ "github.com/lib/pq"
 	"database/sql"
+	
 
 	"../config"
 )
@@ -19,6 +21,9 @@ type App struct {
 }
 
 func (app *App) Initialize(){
+	err := godotenv.Load() //load .env file
+	Fatal(err)
+
 	dbConfig := config.GetDBConfig() //Retrieve DB Config
 	app.BasePath = config.GetAPIPath()
 	fmt.Println(app.BasePath)
